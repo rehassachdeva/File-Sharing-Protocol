@@ -18,6 +18,7 @@
 
 #define MAXBUF 10240 
 #define MAXLEN 100
+#define MAXLINE 1024
 #define CMD_DELIMS " \t\n"
 
 char cmdHistory[MAXBUF][MAXLEN];
@@ -33,7 +34,7 @@ void error(const char *msg);
 int clientTCP(char *remoteIP, int port);
 
 struct fileData {
-  char filename[100];
+  char filename[MAXLEN];
   off_t size;
   time_t mtime;
   char type;
@@ -63,115 +64,116 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-void longlist() {
-
-  DIR *remoteDir;
+void longlist() 
+{
   int i = 0; 
+  DIR *remoteDir;
   struct dirent *fptr;
-  remoteDir = opendir ("./");
   struct stat fileStatus;
+
+  remoteDir = opendir ("./");
 
   if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
   else
   {
-
     while (fptr = readdir (remoteDir))
     {
-      if(stat(fptr->d_name, &fileStatus) < 0)
+      if(stat(fptr->d_name, &fileStatus) < 0) {
+        sprintf(res, "ERROR stat unsuccessful\n");
         break;
+      }
       else
       {
         strcpy(fData[i].filename, fptr->d_name);
         fData[i].size = fileStatus.st_size;
         fData[i].mtime = fileStatus.st_mtime;
         fData[i].type = (S_ISDIR(fileStatus.st_mode)) ? 'd' : '-';
-
         i++;
       }
     }
-
-    fDataIndex=i;
+    fDataIndex = i;
     closedir (remoteDir);
   }
 }
 
 int shortlist(time_t sTime, time_t eTime)
 {
-    DIR *remoteDir;
-    int i = 0;
-    struct dirent *fptr;
-    remoteDir = opendir ("./");
-    struct stat fileStatus;
+  int i = 0;
+  DIR *remoteDir;
+  struct dirent *fptr;
+  struct stat fileStatus;
 
-    if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
-    else {
-        while (fptr = readdir (remoteDir))
-        {
-            if(stat(fptr->d_name, &fileStatus) < 0)
-                break;
-            else if(difftime(fileStatus.st_mtime, sTime) > 0 && difftime(eTime, fileStatus.st_mtime) > 0)
-            {
-                  strcpy(fData[i].filename, fptr->d_name);
+  remoteDir = opendir ("./");
+
+  if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
+  else {
+    while (fptr = readdir (remoteDir))
+    {
+      if(stat(fptr->d_name, &fileStatus) < 0) {
+        sprintf(res, "ERROR stat unsuccessful\n");
+        break;
+      }
+      else if(difftime(fileStatus.st_mtime, sTime) >= 0 && difftime(fileStatus.st_mtime, eTime) <= 0)
+      {
+        strcpy(fData[i].filename, fptr->d_name);
         fData[i].size = fileStatus.st_size;
         fData[i].mtime = fileStatus.st_mtime;
         fData[i].type = (S_ISDIR(fileStatus.st_mode)) ? 'd' : '-';
         i++;
-            }
-        }
-    fDataIndex=i;
-        closedir (remoteDir);
+      }
     }
+    fDataIndex=i;
+    closedir (remoteDir);
+  }
 }
 
-int regex(char *regexp) {
-   FILE *pipe;
-    char command[MAXLEN] = "ls ";
-    char str[1024];
-    memset(str, 0,sizeof(str));
-    char line[1024];
-    char readBuffer[MAXBUF];
-    i = 0;
-    regex = 1;
+int regex(char *expr) 
+{
 
-    strncpy(str,regexp+1,strlen(regexp)-2);
-    strcat(string,str);
+  FILE *pipe;
+  char command[MAXLEN] = "ls ";
 
-    DIR *remoteDir;
-    int i = 0;
-    struct dirent *fptr;
-    remoteDir = opendir ("./");
-    struct stat fileStatus;
+  char line[1024];
+  char readBuffer[MAXBUF];
 
-    if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
-    else {
-        while (fptr = readdir (remoteDir))
+  strcat(command, expr);
+
+  int i = 0;
+  DIR *remoteDir;
+  struct dirent *fptr;
+  struct stat fileStatus;
+
+  remoteDir = opendir ("./");
+
+  if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
+  else {
+    while (fptr = readdir (remoteDir))
+    {
+      if(stat(fptr->d_name, &fileStatus) < 0) {
+        sprintf(res, "ERROR stat unsuccessful\n");
+        break;
+      }
+      else if(( pipe = popen(command, "r")) == NULL) {
+        sprintf(res, "ERROR with popen\n");
+        break;
+      }
+      else {
+        while(fgets(readBuffer, MAXLINE, pipe))
         {
-            if(stat(fptr->d_name, &fileStatus) < 0)
-                break;
-              else if(( pipe = popen(command, "r")) == NULL) {
-                sprintf(res, "ERROR with popen\n");
-                break;
-              }
-              else {
-                while(fgets(readBuffer, MAXBUF, pipe))
-                {
-                    if(strcmp(readBuffer, fptr->d_name) == 0) 
-
-              }
-
-            else if(difftime(fileStatus.st_mtime, sTime) > 0 && difftime(eTime, fileStatus.st_mtime) > 0)
-            {
-                  strcpy(fData[i].filename, fptr->d_name);
-        fData[i].size = fileStatus.st_size;
-        fData[i].mtime = fileStatus.st_mtime;
-        fData[i].type = (S_ISDIR(fileStatus.st_mode)) ? 'd' : '-';
-        i++;
-            }
+          if(strncmp(readBuffer, fptr->d_name, strlen(readBuffer) - 1) == 0) 
+          {
+            strcpy(fData[i].filename, fptr->d_name);
+            fData[i].size = fileStatus.st_size;
+            fData[i].mtime = fileStatus.st_mtime;
+            fData[i].type = (S_ISDIR(fileStatus.st_mode)) ? 'd' : '-';
+            i++;
+          }
         }
-    fDataIndex=i;
-        closedir (remoteDir);
+      }
     }
-
+    fDataIndex=i;
+    closedir (remoteDir);
+  }
 }
 
 int indexGetCommand(char** cmd_tokens, int tok) {
@@ -181,14 +183,14 @@ int indexGetCommand(char** cmd_tokens, int tok) {
 
   if(strcmp(cmd_tokens[1], "longlist") == 0) {
     if(tok != 2)
-      fprintf(stderr, "Usage: IndexGet longlist\n");
-    
+      sprintf(res, "Usage: IndexGet longlist\n");
+
     else {
       longlist();
     }
   }
   else if(strcmp(cmd_tokens[1], "shortlist") == 0) {
-    
+
     if(tok != 4) {
       sprintf(res, "Usage: IndexGet ​shortlist <starttimestamp> <end​timestamp>\n");
       return;
@@ -206,22 +208,22 @@ int indexGetCommand(char** cmd_tokens, int tok) {
     else
       eTime = mktime(&timeStamp);
     shortlist(sTime, eTime);
-    
-      }
-      else if(strcmp(cmd_tokens[1], "regex") == 0) {
-      if(tok != 3) {
+
+  }
+  else if(strcmp(cmd_tokens[1], "regex") == 0) {
+    if(tok != 3) {
       sprintf(res, "Usage: IndexGet ​regex <regular expression>\n");
       return;
     }
     regex(cmd_tokens[2]);
-      }
+  }
   /*else if(strcmp(cmd_tokens[1], "history") == 0) {
     if(tok != 2)
-      fprintf(stderr, "Usage: IndexGet history\n");
+    fprintf(stderr, "Usage: IndexGet history\n");
     else {
-      history();
+    history();
     }
-  } */
+    } */
 }
 
 int parse_cmd(char* cmd, char** cmd_tokens) {
