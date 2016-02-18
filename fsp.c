@@ -137,6 +137,7 @@ int regex(char *expr)
   char readBuffer[MAXBUF];
 
   strcat(command, expr);
+  strcat(command, " 2>/dev/null");
 
   int i = 0;
   DIR *remoteDir;
@@ -172,6 +173,9 @@ int regex(char *expr)
       }
     }
     fDataIndex=i;
+    if(fDataIndex == 0) {
+      sprintf(res, "No such file or directory\n");
+    }
     closedir (remoteDir);
   }
 }
