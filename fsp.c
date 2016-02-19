@@ -22,12 +22,14 @@
 #define CMD_DELIMS " \t\n"
 
 char cmdHistory[MAXBUF][MAXLEN];
-
 int  numCmds = 0;
+char res[MAXBUF];
+int fDataIndex, cDataIndex;
 
 int serverTCP(int port);
 void longlist();
 int indexGetCommand(char** cmd_tokens, int tok);
+int fileHashCommand(char** cmd_tokens, int tok);
 int parse_cmd(char* cmd, char** cmd_tokens);
 int check_cmd_type(char** cmd_tokens, int tok);
 void error(const char *msg);
@@ -40,9 +42,11 @@ struct fileData {
   char type;
 } fData[MAXBUF];
 
-char res[MAXBUF];
-
-int fDataIndex=0;
+struct checksumData {
+  char filename[MAXLEN];
+  time_t mtime;
+  unsigned char checksum[MD5_DIGEST_LENGTH];
+} cData[MAXBUF];
 
 int main(int argc, char *argv[])
 {
@@ -174,7 +178,7 @@ int regex(char *expr)
     }
     fDataIndex=i;
     if(fDataIndex == 0) {
-      sprintf(res, "No such file or directory\n");
+      sprintf(res, "ERROR: No such file or directory\n");
     }
     closedir (remoteDir);
   }
@@ -230,6 +234,121 @@ int indexGetCommand(char** cmd_tokens, int tok) {
     } */
 }
 
+void checkall() 
+{
+  int i = 0; 
+  DIR *remoteDir;
+  FILE *file;
+  struct dirent *fptr;
+  struct stat fileStatus;
+  char readBuffer[MAXBUF];
+  MD5_CTX c;
+  unsigned long len;
+  remoteDir = opendir ("./");
+  if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
+  else
+  {
+    while (fptr = readdir (remoteDir))
+    {
+      if(stat(fptr->d_name, &fileStatus) < 0) {
+        sprintf(res, "ERROR stat unsuccessful\n");
+        break;
+      }
+      else
+      {
+        file = fopen(fptr->d_name, "rb");
+        if(!file) {
+          sprintf(res, "ERROR opening file %s\n", fptr->d_name);
+          break;
+        }
+
+        strcpy(cData[i].filename, fptr->d_name);
+        cData[i].mtime = fileStatus.st_mtime;
+        if(!MD5_Init (&c)) {
+          sprintf(res, "ERROR with MD5\n");
+          break;
+        }
+        while( (len = fread(readBuffer, 1, MAXLINE, file)) != 0 ) {
+                  MD5_Update(&c, readBuffer, len);
+        }
+        MD5_Final(cData[i].checksum, &c);
+        fclose(file);
+        i++;
+      }
+    }
+  }
+  cDataIndex = i;
+  closedir (remoteDir);
+}  
+
+void verify(char *filename) 
+{
+  printf("hello");
+    int i = 0; 
+  DIR *remoteDir;
+  FILE *file;
+  struct dirent *fptr;
+  struct stat fileStatus;
+  char readBuffer[MAXBUF];
+  MD5_CTX c;
+  unsigned long len;
+  remoteDir = opendir ("./");
+  if( remoteDir == NULL) sprintf(res, "ERROR opening the directory\n");
+  else
+  {
+    while (fptr = readdir (remoteDir))
+    {
+      if(stat(fptr->d_name, &fileStatus) < 0) {
+        sprintf(res, "ERROR stat unsuccessful\n");
+        break;
+      }
+        else if(strcmp(filename, fptr->d_name) != 0) continue;
+      else
+      {
+        file = fopen(fptr->d_name, "rb");
+        if(!file) {
+          sprintf(res, "ERROR opening file %s\n", fptr->d_name);
+          break;
+        }
+
+        strcpy(cData[i].filename, fptr->d_name);
+        cData[i].mtime = fileStatus.st_mtime;
+        if(!MD5_Init (&c)) {
+          sprintf(res, "ERROR with MD5\n");
+          break;
+        }
+        while( (len = fread(readBuffer, 1, MAXLINE, file)) != 0 ) {
+                  MD5_Update(&c, readBuffer, len);
+        }
+        MD5_Final(cData[i].checksum, &c);
+        fclose(file);
+        i++;
+      }
+    }
+  }
+  cDataIndex = i;
+  closedir (remoteDir);
+ 
+}
+
+int fileHashCommand(char** cmd_tokens, int tok) {
+
+  if(strcmp(cmd_tokens[1], "checkall") == 0) {
+    if(tok != 2)
+      sprintf(res, "Usage: FileHash checkall\n");
+    else {
+      checkall();
+    }
+  }
+  else if(strcmp(cmd_tokens[1], "verify") == 0) {
+
+    if(tok != 3) {
+      sprintf(res, "Usage: FileHash ​verify <filename>\n");
+    }
+    else verify(cmd_tokens[2]);
+  }
+}
+
 int parse_cmd(char* cmd, char** cmd_tokens) {
   int tok = 0;
   char* token = strtok(cmd, CMD_DELIMS);
@@ -245,7 +364,10 @@ int check_cmd_type(char** cmd_tokens, int tok) {
     indexGetCommand(cmd_tokens, tok);
     return 1;
   }
-  else if(strcmp(cmd_tokens[0], "FileHash") == 0) return 2;
+  else if(strcmp(cmd_tokens[0], "FileHash") == 0) {
+    fileHashCommand(cmd_tokens, tok);
+    return 2;
+  }
   else if(strcmp(cmd_tokens[0], "FileUpload") == 0) return 3;
   else if(strcmp(cmd_tokens[0], "FileDownload") == 0) return 4; 
 }
@@ -302,18 +424,45 @@ int serverTCP(int port)
       printf("Command Received: %s %s\n", cmd_tokens[0], cmd_tokens[1]);
 
       typeCommand = check_cmd_type(cmd_tokens, tok);
+        memset(writeBuffer, 0, sizeof(writeBuffer));
 
       if(typeCommand == 1)
       {
-        strcat(writeBuffer,res);
+        strcat(writeBuffer, res);
         int j;
-        for(j=0;j<fDataIndex;j++)
+        for(j=0; j<fDataIndex; j++)
         {
-          sprintf(res, "%-20s  %-10d  %-10c %-20s\n", fData[j].filename, fData[j].size, fData[j].type,ctime(&fData[j].mtime));
+          sprintf(res, "%-20s  %-10d  %-10c %-20s\n", fData[j].filename, fData[j].size, fData[j].type, ctime(&fData[j].mtime));
           strcat(writeBuffer,res);
         }
         strcat(writeBuffer, "~@~");
+        write(remoteSockfd, writeBuffer, strlen(writeBuffer));
+      }
 
+      else if(typeCommand == 2) 
+      {
+
+            int k;
+
+        strcat(writeBuffer, res);
+        int j;
+        for(j=0; j<cDataIndex; j++)
+        {
+        
+
+          sprintf(res, "%-20s  ", cData[j].filename);
+          strcat(writeBuffer,res);
+        for(k = 0; k<MD5_DIGEST_LENGTH; k++) {
+          sprintf(res, "%02x", cData[j].checksum[k]);
+          strcat(writeBuffer,res);
+        }
+        sprintf(res, "          %-30s\n", ctime(&cData[j].mtime));
+          strcat(writeBuffer,res);
+
+
+
+        }
+        strcat(writeBuffer, "~@~");
         write(remoteSockfd, writeBuffer, strlen(writeBuffer));
       }
       /* char *command = malloc(MAXBUF);
