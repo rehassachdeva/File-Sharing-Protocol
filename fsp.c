@@ -333,7 +333,6 @@ int serverUDP()
 			} 
 		} 
 	}
-	// close(remoteSockfd);
 	close(localSockfd);
 	wait(NULL);
 }
