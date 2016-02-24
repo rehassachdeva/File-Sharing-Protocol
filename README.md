@@ -15,18 +15,18 @@ example: ./fsp 127.0.0.1 3000 4000 5000 6000
 
 ### COMMANDS:
 
-IndexGet longlist  
+* IndexGet longlist  
    
-IndexGet shortlist `<start-time-stamp>` `<end-time-stamp>`  
+* IndexGet shortlist `<start-time-stamp>` `<end-time-stamp>`  
 example: IndexGet shortlist 12-02-2016-18:00:00 20-02-2016-18:00:00
 
-IndexGet regex `<regex pattern>`
+* IndexGet regex `<regex pattern>`
 example: IndexGet regex `*.c`
 
-FileHash verify `<Name-of-file>`
+* FileHash verify `<Name-of-file>`
 
-FileHash checkall
+* FileHash checkall
 
-FileDownload `<TCP or UDP>` `<Name-of-file>`
+* FileDownload `<TCP or UDP>` `<Name-of-file>`
 
-History
+* History
