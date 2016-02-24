@@ -71,12 +71,12 @@ int main(int argc, char *argv[])
   pid_t pid = fork();
   if(pid < 0) error("Fork error\n");
   else if(pid == 0) {
-    // pid_t pd = fork();
-    // if(pd < 0) error("Fork error\n");
-    // if(pd == 0) 
+     pid_t pd = fork();
+     if(pd < 0) error("Fork error\n");
+     if(pd == 0) 
     serverTCP();
-    // else 
-    //serverUDP();
+     else 
+    serverUDP();
   }
   else if(pid > 0) client(argv[1]);
   return 0;
