@@ -6,7 +6,7 @@ Rehas Sachdeva
 Ayushi Goyal
 
 ### COMPILE: 
-gcc -w -o fsp fsp.c -lssl -lcrypto
+>gcc -w -o fsp fsp.c -lssl -lcrypto
 
 ### EXECUTE:
 ./fsp `<remoteIP address>` `<tcp remote port>` `<tcp local port>` `<udp remote port>` `<udp local port>`
