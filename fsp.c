@@ -249,7 +249,7 @@ int serverUDP()
     bzero(writeBuffer, sizeof(writeBuffer));
     bzero(res, sizeof(res));
 
-    n = read(localSockfd, readBuffer, sizeof(readBuffer));
+    n = recv(localSockfd, readBuffer, sizeof(readBuffer),0);
 
     if(n > 0) {
       char** cmd_tokens = malloc((sizeof(char)*MAXBUF)*MAXBUF);
@@ -270,7 +270,7 @@ int serverUDP()
           strcat(writeBuffer,res);
         }
         strcat(writeBuffer, "==============================================================================================================================================");
-        write(localSockfd, writeBuffer, strlen(writeBuffer));
+        send(localSockfd, writeBuffer, strlen(writeBuffer),0);
       }
       else if(typeCommand == 2) 
       {
@@ -290,7 +290,7 @@ int serverUDP()
           strcat(writeBuffer,res);
         }
         strcat(writeBuffer, "==============================================================================================================================================");
-        write(localSockfd, writeBuffer, strlen(writeBuffer));
+        send(localSockfd, writeBuffer, strlen(writeBuffer),0);
       }
       else if(typeCommand == 3) {
         FILE* file;
@@ -301,12 +301,12 @@ int serverUDP()
           bytes_read = fread(res, 1, 1024, file);
           memset(writeBuffer, 0, sizeof(writeBuffer));
           memcpy(writeBuffer,res,bytes_read);
-          write(localSockfd , writeBuffer , bytes_read);
+          send(localSockfd , writeBuffer , bytes_read,0);
           memset(writeBuffer, 0, sizeof(writeBuffer));
           memset(res, 0, sizeof(res));
         }
         memcpy(writeBuffer,"END",3);
-        write(localSockfd , writeBuffer , 3);
+        send(localSockfd , writeBuffer , 3, 0);
         memset(writeBuffer, 0, sizeof(writeBuffer));
         fclose(file);
         getDownloadData(cmd_tokens[2]);
@@ -327,7 +327,7 @@ int serverUDP()
 
         }
         strcat(writeBuffer, "==============================================================================================================================================");
-        write(localSockfd, writeBuffer, strlen(writeBuffer));
+        send(localSockfd, writeBuffer, strlen(writeBuffer),0);
       } 
     } 
   }
@@ -374,7 +374,7 @@ int client(char *remoteIP) {
     bzero(command, sizeof(command)); 
     bzero(downloadFilename, sizeof(command)); 
     if(getDownloadFlag == 1) {
-      n = read(localSockfd, readBuffer, sizeof(readBuffer) - 1);
+      n = recv(localSockfd, readBuffer, sizeof(readBuffer) - 1,0);
       if (n < 0) error("ERROR reading from socket");
       printf("%s\n", readBuffer);
       getDownloadFlag = 0;
@@ -391,12 +391,12 @@ int client(char *remoteIP) {
     typeCommand = check_cmd_type(cmd_tokens, tok);
     if(typeCommand == 1 || typeCommand == 2)
     {
-      n = write(localSockfd, writeBuffer, strlen(writeBuffer));
+      n = send(localSockfd, writeBuffer, strlen(writeBuffer),0);
 
       if (n < 0) error("ERROR writing to socket");
 
 
-      n = read(localSockfd, readBuffer, sizeof(readBuffer) - 1);
+      n = recv(localSockfd, readBuffer, sizeof(readBuffer) - 1,0);
       if (n < 0) error("ERROR reading from socket");
       printf("%s\n", readBuffer);
     }
@@ -411,14 +411,14 @@ int client(char *remoteIP) {
       if(strcmp(cmd_tokens[1], "TCP") == 0) 
         n = write(localSockfd, writeBuffer, strlen(writeBuffer));
       else
-        n = write(localSockfdUdp, writeBuffer, strlen(writeBuffer));
+        n = send(localSockfdUdp, writeBuffer, strlen(writeBuffer),0);
       if (n < 0) error("ERROR writing to socket");
       while(1) {
         memset(readBuffer, 0, strlen(readBuffer));
         if(strcmp(cmd_tokens[1], "TCP") == 0) 
           n = read(localSockfd, readBuffer, sizeof(readBuffer) - 1);
         else
-          n = read(localSockfdUdp, readBuffer, sizeof(readBuffer) - 1);
+          n = recv(localSockfdUdp, readBuffer, sizeof(readBuffer) - 1,0);
         if(n < 0) {
           fprintf(stderr, "ERROR reading from socket");
 
